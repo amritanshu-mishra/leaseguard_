@@ -18,6 +18,8 @@ A working, bilingual (English/हिंदी) lease-charge checker for small te
 
 Both servers are already started in this workspace. If you restart them, follow §1.
 
+**Recording the demo?** Use [`docs/demo-video-script.md`](docs/demo-video-script.md) — it has a ready 2-minute voiceover, click-by-click actions, screen-recorder options, and a browser preview URL that needs no laptop installation.
+
 ## 1. Quick start (no API key needed)
 
 Requires Python 3.11+ and Node 18+.
