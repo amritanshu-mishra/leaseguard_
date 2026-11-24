@@ -1,197 +1,486 @@
 # LeaseGuard — evidence-first lease charge audit
 
-A working, bilingual (English/हिंदी) lease-charge checker for small tenants. Upload a lease, its amendment and an invoice. LeaseGuard extracts terms with **verbatim quotes**, resolves which amendment controls, recomputes rent and maintenance **deterministically in integer paise**, and shows the clause, page, effective date and calculation behind every flagged difference. It never guesses, never claims a recovery, and never sends anything to a landlord: a tenant approves findings before a letter is prepared, and the letter can be shared as a WhatsApp draft.
+**Team Techbeez** · Amritanshu Mishra · Kaushiki Upadhaya
 
-> All bundled documents are **synthetic demo data** derived from the attached technical specification. No real tenant documents or personal data are used. See [`docs/synthetic-data.md`](docs/synthetic-data.md).
+LeaseGuard is a bilingual (English / हिंदी) hackathon app that compares a tenant's invoice with a lease and its amendments. The AI reads and extracts clauses; deterministic Python code decides which amendment controls, recomputes the charges in integer paise, and shows the evidence behind every flagged difference. It opens a WhatsApp **draft** for sharing — it never sends a message and never claims money was recovered.
+
+> All bundled documents are **synthetic demo data** derived from the supplied technical specification. No real tenant documents or personal data are used. See [`docs/synthetic-data.md`](docs/synthetic-data.md).
 
 ---
 
-## 0. Where to open this project
+## 0. Where things are
 
-| Thing | Path / URL |
+| Thing | Location |
 | --- | --- |
-| Repository root | `/home/user/leaseguard_` |
-| Backend code | `backend/` (FastAPI on `http://localhost:8000`, docs at `/docs`) |
-| Frontend code | `frontend/` (Vite on `http://localhost:5173`) |
-| Groq API key file | `backend/.env` — **not** the repo root, **not** the frontend |
-| In-app setup guide | Click the **key icon** in the app header |
+| Repository branch | `arena/e36129fa-leaseguard` |
+| Backend | `backend/` — FastAPI on `http://localhost:8000`; interactive docs at `/docs` |
+| Frontend | `frontend/` — React + Vite on `http://localhost:5173` |
+| Groq key file | `backend/.env` — git-ignored, **not** the repo root, **not** `frontend/` |
+| In-app setup guide | Key icon in the app header |
+| Final 2-minute demo script | [`docs/demo-video-script.md`](docs/demo-video-script.md) |
 
-Both servers are already started in this workspace. If you restart them, follow §1.
+### Open the live preview in Arena
 
-## 1. Quick start (no API key needed)
+While this Arena session is live, the app is already running:
 
-Requires Python 3.11+ and Node 18+.
+1. Open the **Live Preview** panel in Arena for the running “Website” process on port **5173**.
+2. Click **Open in new tab** to record in a normal browser tab.
+3. You should see **“Check your rent before you pay.”**, a **Load sample case** button, and the footer **Techbeez · Amritanshu Mishra · Kaushiki Upadhaya**. The **Demo mode** badge is expected.
+4. Direct fallback: <https://5173-iq00wejk649icn06cmrof.e2b.app>
+5. Do **not** use `http://localhost:5173` on your laptop — that points to your laptop, not this sandbox. Port **8000** is the API; only port 5173 is the app.
+
+---
+
+## 1. The problem and the design rule
+
+A shopkeeper sends a monthly bill. The tenant has a lease and one or more amendments, often with conflicting escalation clauses. Manually checking which clause was in force on the billing date is slow and error-prone.
+
+LeaseGuard follows one rule everywhere:
+
+> **The model reads. The code decides.**
+
+The language model only extracts facts with a verbatim quote and page number. Strict Pydantic schemas, a quote-verification gate and deterministic domain functions do the rest. The model never computes an amount, never chooses the controlling amendment, and never writes the letter's conclusions.
+
+Four consequences:
+
+1. **Evidence or uncertainty.** A term without a verified quote on the cited page cannot become a fact.
+2. **Precedence by effective date.** The latest validated term on or before the relevant date wins; same-date disagreements become a conflict, not a silent choice.
+3. **Integer paise.** All money is `int` paise with half-up integer division — no floating-point amounts.
+4. **Share, don't send.** Findings require tenant approval; the letter opens a WhatsApp draft that the tenant decides whether to send.
+
+---
+
+## 2. Architecture
+
+### 2.1 High-level architecture
+
+```mermaid
+flowchart LR
+  U["Tenant or judge<br/>browser"] --> UI["React + Vite UI<br/>port 5173"]
+  UI -->|"/api/v1/*"| PROXY["Vite dev proxy"]
+  PROXY --> API["FastAPI app<br/>port 8000"]
+  API --> SVC["Services<br/>extraction + letter"]
+  SVC --> DOMAIN["Pure domain<br/>precedence + checks + money"]
+  SVC --> CHOICE{"Extraction provider"}
+  CHOICE -->|"fixtures, no key"| FIX["Bundled synthetic samples<br/>matched by content hash"]
+  CHOICE -->|"groq, with key"| GROQ["Groq chat completions<br/>OpenAI-compatible endpoint"]
+  API --> REPO[("InMemoryRepo<br/>lease-scoped rows")]
+  DOMAIN --> REPO
+  GROQ --> SVC
+  FIX --> SVC
+```
+
+The browser never calls a `localhost` backend from the preview. It calls same-origin `/api/v1/*`; Vite forwards those requests to FastAPI. CORS is configured as a secondary path for direct API access.
+
+### 2.2 End-to-end request sequence
+
+```mermaid
+sequenceDiagram
+  actor U as User
+  participant UI as React UI
+  participant API as FastAPI
+  participant EX as ExtractionService
+  participant P as Fixture or Groq provider
+  participant D as Domain checks
+  participant R as InMemoryRepo
+
+  U->>UI: Load sample case or upload files
+  UI->>API: POST /api/v1/demo/load or /leases/{id}/documents
+  API->>R: Create or fetch lease
+  loop One bundled or uploaded document
+    API->>EX: Ingest bytes with kind and effective date
+    EX->>P: Extract terms or invoice as schema-valid JSON
+    P-->>EX: Terms with quotes and pages, or invoice amounts
+    EX->>EX: Verify each quote on its cited page
+    EX-->>API: Grounded Term objects or Invoice
+    API->>R: Store document, terms or invoice
+  end
+  UI->>API: POST /leases/{id}/audits
+  API->>D: audit_invoice(terms, invoice, lease start)
+  D-->>API: Confirmed and uncertain findings with calculations
+  API->>R: Save audit and findings
+  API-->>UI: One canonical audit payload
+  U->>UI: Approve or reject findings
+  UI->>API: PATCH /findings/{id}
+  U->>UI: Generate letter
+  UI->>API: POST /audits/{id}/letter?lang=en or hi
+  API-->>UI: Letter text and WhatsApp draft URL
+```
+
+### 2.3 Audit pipeline flowchart
+
+```mermaid
+flowchart TD
+  A["PDF or TXT upload"] --> B["to_pages(): extension, PDF magic bytes, page limit, text layer"]
+  B --> C["SHA-256 duplicate check"]
+  C --> D{"Document kind"}
+  D -->|"lease or amendment"| E["Provider extracts terms"]
+  D -->|"invoice"| F["Provider extracts invoice amounts"]
+  E --> G["Quote gate: exact text on cited page"]
+  G -->|"not found"| H["Unverified term stored as uncertain evidence"]
+  G -->|"found"| I["Validated term with document, page, effective date"]
+  F --> J["Invoice stored for billing period"]
+  I --> K["controlling_term(): latest validated term on or before date"]
+  H --> K
+  J --> L["audit_invoice(): rent escalation and maintenance cap"]
+  K --> L
+  L --> M{"Result"}
+  M -->|"billed above expected"| N["Confirmed finding + step-by-step calculation"]
+  M -->|"conflict, ambiguity, unverified or missing"| O["Uncertain finding, no amount invented"]
+  M -->|"billed not above expected"| P["No finding"]
+  N --> Q["Tenant approves or rejects"]
+  O --> Q
+  Q --> R["Only confirmed + approved findings"]
+  R --> S["Bilingual letter + wa.me draft link"]
+```
+
+### 2.4 Data model
+
+```mermaid
+erDiagram
+  LEASE ||--o{ DOCUMENT : has
+  LEASE ||--o{ TERM : yields
+  LEASE ||--o{ INVOICE : has
+  LEASE ||--o{ AUDIT : produces
+  AUDIT ||--o{ FINDING : contains
+  FINDING ||--o| DECISION : records
+
+  LEASE {
+    string id
+    string user_id
+    string property_label
+    date start_date
+  }
+  DOCUMENT {
+    string id
+    string kind
+    string sha256
+    int pages
+    date effective_date
+  }
+  TERM {
+    string term_type
+    int value
+    string source_quote
+    int page
+    date effective_date
+    bool validated
+    bool ambiguous
+  }
+  INVOICE {
+    date period_start
+    int rent_paise
+    int maintenance_paise
+  }
+  AUDIT {
+    string id
+    string lease_id
+    date created_at
+  }
+  FINDING {
+    string id
+    string status
+    string reason
+    int difference_paise
+    string calculation
+  }
+  DECISION {
+    string finding_id
+    string decision
+  }
+```
+
+The diagram is conceptual: the current repository stores these as dictionaries in `InMemoryRepo`, not as SQL tables. Every lease-scoped read is filtered by `user_id`; a foreign lease returns the same 404 as a missing one.
+
+### 2.5 Finding lifecycle
+
+```mermaid
+stateDiagram-v2
+  [*] --> Extracted
+  Extracted --> Confirmed: quote verified and billed above expected
+  Extracted --> Uncertain: conflict, ambiguity, unverified quote or missing term
+  Confirmed --> Approved: tenant approves
+  Confirmed --> Rejected: tenant rejects
+  Uncertain --> Reviewed: tenant records a decision
+  Approved --> Letter: included with approved confirmed findings
+  Rejected --> Excluded
+  Reviewed --> Excluded: never included in the letter
+  Letter --> WhatsAppDraft
+```
+
+### 2.6 Layer responsibilities
+
+| Layer | Files | Rule |
+| --- | --- | --- |
+| HTTP API | `backend/app/api/main.py` | Validate, authorise, call services, map errors. No business logic. |
+| Services | `backend/app/services/` | Extraction + quote gate; deterministic bilingual letters. |
+| Domain | `backend/app/domain/` | Pure dataclasses and functions: precedence, checks, money, impact. |
+| Infrastructure | `backend/app/infra/` | Groq/fixture adapters, PDF/TXT parsing, in-memory repository. |
+| Contracts | `backend/app/schemas.py` | Strict Pydantic models with `extra="forbid"` for model output and request bodies. |
+| Demo catalogue | `backend/app/demo.py` | Six labelled scenarios composed from bundled samples at request time. |
+| UI pages | `frontend/src/pages/` | Dashboard, lease detail, audit, letter and help. |
+| UI components | `frontend/src/components/` | Upload, evidence, impact, status, setup modal, layout and error boundary. |
+| API client | `frontend/src/api/client.ts` | Typed calls to `/api/v1`; one place for the base path and error shape. |
+| Translations | `frontend/src/i18n/index.ts` | Single EN/HI dictionary for screens, buttons, findings and errors. |
+
+---
+
+## 3. What is implemented
+
+### 3.1 Upload and extraction
+
+- `.pdf` and `.txt` only; PDF magic bytes are checked and text layer is required. Scanned PDFs are rejected with a clear message — **no OCR in this build**.
+- Default limits: **10 MB** per file and **50 pages** (`MAX_UPLOAD_MB`, `MAX_PAGES`).
+- Duplicate SHA-256 uploads to the same lease return `409`.
+- A lease document's effective date corrects a placeholder tenancy start date, so anniversaries are computed from evidence.
+- **Fixture mode** recognises bundled samples by content fingerprint, so renamed files and PDF/TXT twins both work without a key. Unknown files are rejected rather than guessed.
+- **Groq mode** sends page-tagged document text as data inside a fixed instruction frame, requests JSON, validates it against Pydantic schemas, and retries once with validation feedback.
+
+### 3.2 Grounding and precedence
+
+- Every extracted term must be quoted verbatim (whitespace-normalised) on the **cited page**; otherwise `validated=false`.
+- `controlling_term()` has five explicit outcomes: `Controlling`, `Missing`, `Unverified`, `Conflict`, `Ambiguous`.
+- Effective dates are applied per anniversary for escalation and at the invoice period start for the maintenance cap.
+- Future amendments are ignored; same-date conflicting amendments are both shown.
+
+### 3.3 Checks and evidence
+
+Two deterministic checks are implemented:
+
+| Check | Logic |
+| --- | --- |
+| `rent_escalation` | Base rent, then one escalation per completed anniversary using the controlling basis points; compare to billed rent. |
+| `maintenance_cap` | Compare billed maintenance to the controlling flat monthly cap. |
+
+Confirmed findings include billed, expected, difference, source terms and ordered calculation steps. Each evidence row shows the clause quote, document, page and effective date. Uncertain findings show the relevant clauses/reason and deliberately leave the amount empty.
+
+### 3.4 Decisions, impact and letter
+
+- `PATCH /findings/{id}` records `approved` or `rejected`; the audit refresh endpoint reflects it immediately.
+- Impact fields: **excess detected**, **awaiting your review**, **estimated minutes saved**, plus counts and an explicit disclaimer. Time saved is `3 × documents + 5 × audits`, labelled illustrative, not measured.
+- The letter includes only **confirmed + approved** findings, is generated in English or Hindi, and returns a `https://wa.me/?text=` draft link. It also exposes copy-text, copy-link, native share and an `api.whatsapp.com` alternate link. Nothing is sent automatically.
+
+### 3.5 Bilingual and demo experience
+
+- Header EN/हिंदी toggle; translated buttons, errors, findings, evidence, impacts and letter.
+- Header key icon opens the bilingual Groq setup guide.
+- Six selectable synthetic scenarios are assembled dynamically through the real upload/extract/audit path — see §6.
+- The `Use a bundled sample` button works in demo mode even for a manually created lease.
+
+---
+
+## 4. Project layout
+
+```text
+leaseguard_
+├── backend/
+│   ├── app/
+│   │   ├── api/main.py           # HTTP routes and canonical response shaping
+│   │   ├── core/config.py        # env-backed settings, .env loader
+│   │   ├── domain/               # checks, precedence, money, impact, models, quotes
+│   │   ├── infra/                # Groq/fixture adapters, text extraction, repo
+│   │   ├── services/             # extraction service, letter builder
+│   │   ├── demo.py               # six-scenario catalogue
+│   │   └── schemas.py            # Pydantic contracts
+│   ├── samples/                  # synthetic TXT + PDF twins
+│   ├── samples/fixtures/         # content-hash extraction fixtures
+│   ├── scripts/                  # sample builder, key helper, smoke tests
+│   └── tests/                    # 44 backend tests
+├── frontend/
+│   ├── src/pages/                # Dashboard, LeaseDetail, Audit, Letter, Help
+│   ├── src/components/           # UploadPanel, EvidencePanel, ImpactStrip, modals
+│   ├── src/api/                  # typed client, types, money/date formatters
+│   ├── src/i18n/index.ts         # EN/HI dictionary
+│   └── src/styles.css            # responsive design system
+├── docs/                         # architecture, synthetic data, checklist, video script
+├── .github/workflows/ci.yml      # lint, tests, typecheck, build, pipeline smoke
+├── setup_laptop.sh               # macOS/Linux one-command setup
+└── setup_laptop.ps1              # Windows PowerShell one-command setup
+```
+
+### Technology
+
+Backend: Python 3.11, FastAPI, Pydantic 2, pypdf, `openai` SDK pointed at Groq, pytest, ruff.  
+Frontend: Node 18+ (CI uses Node 20), React 18, TypeScript, Vite 5, Vitest, Testing Library, lucide-react.
+
+---
+
+## 5. HTTP API
+
+All application routes are under `/api/v1`; `/health` is unversioned. Interactive docs: `http://localhost:8000/docs`.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/health` | Liveness and provider name |
+| `GET` | `/api/v1/config` | Provider, live flag, model, json mode, upload limit, key status |
+| `POST` | `/api/v1/leases` | Create a lease |
+| `PATCH` | `/api/v1/leases/{lease_id}` | Edit property label or start date |
+| `GET` | `/api/v1/leases` | List the current user's leases |
+| `GET` | `/api/v1/leases/{lease_id}` | Lease with documents, terms and invoices |
+| `DELETE` | `/api/v1/leases/{lease_id}` | Delete lease and related audit data |
+| `POST` | `/api/v1/leases/{lease_id}/documents` | Upload lease, amendment or invoice file |
+| `POST` | `/api/v1/leases/{lease_id}/demo/documents` | Attach a bundled sample in either mode |
+| `GET` | `/api/v1/demo/scenarios` | Bilingual scenario catalogue |
+| `POST` | `/api/v1/demo/load?scenario=…` | Compose a scenario through the real pipeline |
+| `GET` | `/api/v1/leases/{lease_id}/terms` | Extracted terms |
+| `POST` | `/api/v1/leases/{lease_id}/audits` | Run audit |
+| `GET` | `/api/v1/audits/{audit_id}` | Refresh the same canonical audit payload |
+| `PATCH` | `/api/v1/findings/{finding_id}` | Approve or reject a finding |
+| `POST` | `/api/v1/audits/{audit_id}/letter?lang=en\|hi` | Build letter and WhatsApp draft |
+| `GET` | `/api/v1/impact` | Overall user-scoped impact |
+| `GET` | `/api/v1/leases/{lease_id}/impact` | Lease-level impact |
+
+Errors use `{"error": {"code": "...", "message": "..."}}`. Missing and foreign rows both return `404`.
+
+---
+
+## 6. Six synthetic scenarios
+
+These are declared in `backend/app/demo.py` and composed from bundled files at request time. Expected outcomes are machine-checked in tests and in the pipeline smoke script.
+
+| ID | Label | What it demonstrates | Expected result |
+| --- | --- | --- | --- |
+| `amendment` | Amendment controls | Lease 10% vs January amendment 5%; April invoice still uses 10% | 2 confirmed · ₹3,200 excess |
+| `ambiguous` | Unclear clause | “A reasonable increase” has no usable number | 1 uncertain + ₹1,200 maintenance excess |
+| `conflict` | Conflicting amendments | 5% and 7% amendments effective the same day | Conflict flagged + ₹1,200 maintenance excess |
+| `future` | Amendment not yet due | 5% amendment starts in July; April uses lease rate | No findings |
+| `missing-cap` | Missing maintenance cap | No cap in documents | Uncertain · no amount invented |
+| `clean` | Clean invoice | 5% amendment and matching invoice | No findings |
+
+The default case in the video is `amendment`: billed rent ₹44,000, expected ₹42,000 (₹2,000 excess); billed maintenance ₹5,200, cap ₹4,000 (₹1,200 excess); total **₹3,200**.
+
+---
+
+## 7. Run it
+
+### 7.1 No-key demo (what the video uses)
 
 ```bash
-# Terminal 1 — API (http://localhost:8000, docs at /docs)
+# Terminal 1 — API
 cd backend
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn app.api.main:app --reload
+uvicorn app.api.main:app --host 0.0.0.0 --port 8000
 
-# Terminal 2 — UI (http://localhost:5173)
+# Terminal 2 — UI
 cd frontend
-npm install
+npm ci                             # or npm install
 npm run dev
 ```
 
-The frontend uses the same-origin base path `/api/v1` by default (see `frontend/.env.example`). For a separate backend host, set `VITE_API_URL=https://host/api/v1` before building.
+Open `http://localhost:5173`. Press **Load sample case / सैंपल केस लोड करें**, then **Run invoice audit / बिल की जाँच करें**. Fixture mode is selected automatically when no usable Groq key is configured.
 
-Open the app and press **Load sample case / सैंपल केस लोड करें**. It creates a lease, attaches the synthetic lease, amendment and invoice through the same upload path a real file uses, and opens the lease. Then press **Run invoice audit / बिल की जाँच करें** → review evidence → approve → **Generate letter** → **Share on WhatsApp**.
+### 7.2 One-command laptop setup
 
-The dashboard also offers **Try a demo scenario / डेमो परिदृश्य आज़माएँ**: six labelled cases are assembled dynamically from the bundled sample library and pushed through the *same* upload, quote-gate and audit pipeline. Each card shows its expected outcome before you load it:
+```bash
+# macOS / Linux
+bash setup_laptop.sh
 
-| Scenario | What it demonstrates |
-| --- | --- |
-| `amendment` | 5% amendment overrides 10% lease → two confirmed discrepancies (₹3,200) |
-| `ambiguous` | "reasonable increase" → uncertain, no amount invented |
-| `conflict` | two amendments on the same date → both quotes shown, no amount calculated |
-| `future` | amendment effective in July is ignored for an April invoice → no finding |
-| `missing-cap` | no maintenance cap in the documents → uncertain, not assumed |
-| `clean` | matching invoice → no findings |
+# Windows PowerShell, from the repo root
+powershell -ExecutionPolicy Bypass -File setup_laptop.ps1
+```
 
-`POST /api/v1/leases/{id}/demo/documents?kind=lease|amendment|invoice` attaches a bundled sample to a lease you created yourself, so the upload flow always works in demo mode.
+If PowerShell says **“'vite' is not recognized”**, dependencies were not installed. Run `npm ci` inside `frontend/` first, or run the setup script above. If `npm` itself is missing, install Node 18+ from <https://nodejs.org> and open a new terminal.
 
-The catalogue is served by `GET /api/v1/demo/scenarios?lang=en|hi`; `POST /api/v1/demo/load?scenario=<id>&lang=<lang>` composes the case. Unknown IDs fall back safely to `amendment`.
+### 7.3 Groq mode
 
-The default provider is `fixtures`: the three bundled synthetic documents are matched by **content fingerprint**, so renaming them or uploading the PDF version still works. No API key is required for the demo.
-
----
-
-## 2. Where to put the Groq API key
-
-**Put the key in `backend/.env`.** This file is git-ignored; never commit the key. You can also click the **key icon** in the app header for the same instructions and a copyable template.
+No key is stored in source code. The secure helper prompts invisibly and writes only `backend/.env`:
 
 ```bash
 cd backend
-cp .env.example .env
+python -m scripts.set_groq_key
 ```
 
-Edit `backend/.env`:
+It asks for a **current** model ID from <https://console.groq.com/docs/models> (for example `openai/gpt-oss-20b`) and sets:
 
 ```dotenv
 EXTRACTION_PROVIDER=groq
-LLM_API_KEY=gsk_your_real_key_here
-EXTRACTION_MODEL=<copy a CURRENT model id from https://console.groq.com/docs/models>
+LLM_API_KEY=gsk_...
+EXTRACTION_MODEL=openai/gpt-oss-20b
 EXTRACTION_JSON_MODE=object
-ALLOWED_ORIGINS=http://localhost:5173
-MAX_UPLOAD_MB=10
-MAX_PAGES=50
 ```
 
-Restart the API after changing `.env`. Verify it in the UI: the header strip switches from **Demo mode · bundled samples** to **Live extraction · Groq**. The `/api/v1/config` endpoint shows `live: true` and never exposes the key.
-
-Then run the one-call smoke test:
+Restart the API after changing `.env`, then run:
 
 ```bash
 cd backend
 python -m scripts.smoke_groq
 ```
 
-Expected: three terms with `quote verified`. If it fails, the usual causes are a stale model id, a key with no credit, or a model that does not support `json_schema` (leave `EXTRACTION_JSON_MODE=object`). In fixtures mode the same endpoint is instant and free.
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `EXTRACTION_PROVIDER` | `fixtures` | `fixtures` or `groq` |
+| `LLM_API_KEY` | empty | Groq key; required for `groq` |
+| `EXTRACTION_MODEL` | empty | Current Groq model ID; required for `groq` |
+| `EXTRACTION_JSON_MODE` | `object` | `object` JSON mode or `schema` if the chosen model supports it |
+| `ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated CORS origins; Arena `*.e2b.app` origins are allowed too |
+| `MAX_UPLOAD_MB` | `10` | Per-file upload cap |
+| `MAX_PAGES` | `50` | Page cap after parsing |
 
-**Key facts about the Groq change**
-
-- Only extraction uses the model. Precedence, arithmetic, quote validation and decisions stay in deterministic Python.
-- The adapter calls Groq's OpenAI-compatible endpoint (`https://api.groq.com/openai/v1`) with temperature 0, page markers, structured JSON and one retry that feeds validation errors back.
-- `EXTRACTION_MODEL` is never hard-coded: Groq retires models frequently, so copy a current id from the console.
-- `EXTRACTION_JSON_MODE=object` works broadly; use `schema` only for models that advertise `json_schema` support.
-- With a key configured, any text-layer PDF or TXT can be read. In fixtures mode only the bundled synthetic samples are recognised — the UI says so honestly.
-- Photos/scans have no OCR in this build. Use a text PDF or TXT.
-
----
-
-## 3. What was built for the hackathon brief
-
-| Requirement | Implementation |
-| --- | --- |
-| Groq instead of Anthropic | `app/infra/llm_groq.py`, env-driven model, `.env.example`, smoke test, fixtures fallback |
-| WhatsApp share for the letter | Deterministic letter plus `share_text` and a `https://wa.me/?text=…` draft link; the button is a real link (more reliable than a popup), with a **More share options** dialog offering copy link, native device share and an alternate `api.whatsapp.com` link for preview environments |
-| Hindi for key screens | Full EN/हिंदी dictionary, header toggle, translated dashboard, lease, audit, decisions, error messages and letter; persisted in `localStorage` |
-| Stronger evidence UI | Every finding shows the clause quote, document, page, effective date, term value/unit, a verified badge and the step-by-step calculation |
-| Impact metric | Excess detected, amount awaiting review, estimated minutes saved; each is labelled as review-only, with an explicit "no money recovered" disclaimer and a transparent estimate basis |
-| Synthetic demo data | Ten text files matching the spec's golden cases, PDF twins generated from the same text, content-hash fixture matching, six dynamically composed scenarios |
-| Working upload | Extension + magic-byte checks, size/page limits, duplicate detection, PDF text layer or TXT, renamed-file and PDF fallback matching, clear errors, drag-and-drop + mobile file picker, plus a **Use a bundled sample** button in demo mode |
-| Correct tenancy dates | New-lease dialog asks for the start date; uploading the base lease corrects a placeholder date; editable start date on the lease screen |
-| Refined UX | Five responsive screens, calm design system, status by icon + text + colour, 44px touch targets, mobile sticky action bar, focus rings, reduced-motion support |
-
-### Impact definitions (important)
-
-- **Excess detected** = sum of `billed − expected` for all confirmed findings.
-- **Awaiting your review** = confirmed excess whose finding has not been approved or rejected.
-- **Time saved** = illustrative estimate (3 min per document read + 5 min per audit reviewed), shown with its basis. It is **not** a measured result.
-- Nothing in the product claims money recovered, sent, or legally owed.
+If Groq client construction fails, the API falls back to fixture mode and exposes the reason in `/api/v1/config` and the UI strip. No model ID is hard-coded in the application.
 
 ---
 
-## 4. Architecture
-
-```
-browser (React + Vite, EN/HI)
-   │  same-origin /api (Vite proxy in dev)
-   ▼
-FastAPI  ── services ── domain (pure: money, precedence, checks, quotes)
-   │                     ▲
-   ├── infra/repo.py     └── infra/text_extraction.py
-   ├── infra/llm_groq.py  ← Groq API (LLM_API_KEY)
-   └── infra/llm_fixture.py ← content-hash matched synthetic fixtures
-```
-
-- **The model reads; code decides.** The LLM only emits validated structured terms with quotes. All amounts and precedence are computed in Python; `Money` uses integer paise and half-up rounding.
-- **Quote gate.** A term is a fact only if its quote appears verbatim (whitespace-normalised, case-insensitive) in the same document. Failures become "needs your input", never numbers.
-- **Precedence.** Latest validated effective date wins; ties with different values conflict; missing, ambiguous and unverified terms are explicit outcomes.
-- **Approval gate.** The letter includes only confirmed findings the tenant approved. Re-running a letter with no approval returns HTTP 409.
-- **Per-user scoping.** Every read is filtered by `user_id`; a foreign lease returns the same 404 as a missing one. Single documented demo user for the hackathon.
-
-Detailed design: [`docs/architecture.md`](docs/architecture.md), submission status: [`docs/submission-checklist.md`](docs/submission-checklist.md). API docs are generated at `http://localhost:8000/docs`.
-
----
-
-## 5. Verification
+## 8. Verification
 
 ```bash
 cd backend
 ruff check .
-python -m pytest -q          # 44 tests: domain, G1–G6/U1–U2, API, uploads, Groq adapter, impact, six demo scenarios
-python -m scripts.smoke_pipeline   # against a running API — full pipeline, no key needed
+python -m pytest -q
+python -m scripts.smoke_pipeline        # against a running API, no key needed
 
 cd ../frontend
 npm run typecheck
-npm test                     # 10 tests: formatting, i18n, API base path, audit/letter/dashboard/setup rendering, decisions, scenario picker
+npm test
 npm run build
 ```
 
-The Groq adapter is tested with a fake OpenAI-compatible client; the live call is verified with `python -m scripts.smoke_groq` once a key is configured. `smoke_pipeline.py` can be pointed at the running UI proxy with `LEASEGUARD_API=http://localhost:5173`. Component tests render the audit screen with a full API payload, so a missing field or a blank translation cannot silently ship. CI runs lint, tests, typecheck and build on every push: [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+Last verified results in this workspace:
 
-### If WhatsApp does not open
+- `ruff check .` clean.
+- **44 backend tests passed** (one harmless Starlette/TestClient deprecation warning).
+- **10 frontend tests passed** across formatting, i18n, API base path, dashboard, audit, letter, setup modal, decisions and scenario picker.
+- `npm run typecheck` and `npm run build` clean.
+- `smoke_pipeline.py` prints **`PIPELINE OK — ready for demo.`** after checking health, uploads, quote validation, both differences, canonical GET/POST audit shape, decision-aware impact, EN/HI letters, WhatsApp links, delete and all six scenarios.
 
-The **Share on WhatsApp** button is a normal link to `wa.me`. Preview iframes and popup blockers can still swallow external navigation. Use **More share options → Copy link** and paste it into WhatsApp, or **Share via device** on a phone. Nothing is sent automatically.
-
-### If a lease upload says “could not be read reliably”
-
-Fixture (demo) mode only recognises the bundled synthetic documents, by content hash. Either press **Use a bundled sample** in the upload panel, load a scenario from the dashboard, or add a Groq key in `backend/.env` and restart the API to read your own text-layer PDF/TXT files.
-
-### If the UI shows no data
-
-The browser must call `/api/v1/...`, not `/api/...`. This is the default in `src/api/client.ts` and `frontend/.env.example`. Restart `npm run dev` after changing `VITE_API_URL`. Check `curl http://localhost:8000/health` and `curl http://localhost:5173/api/v1/config`.
-
-### 60-second demo script
-
-1. **0–10 s** — Dashboard: "Synthetic data. A shopkeeper has a lease, an amendment and this month's invoice." Press **Load sample case**. Point at the six scenario cards to show the range of cases.
-2. **10–25 s** — Lease detail: show the amendment marked *In force* and the older escalation *Superseded*, with the exact clause quote.
-3. **25–40 s** — Audit: "Billed ₹44,000, expected ₹42,000. Here is the quote, page, effective date and calculation — ₹2,000 excess."
-4. **40–50 s** — Impact strip: ₹3,200 excess detected, ₹3,200 awaiting review, estimated time saved. "No money is recovered."
-5. **50–60 s** — Approve both → Generate letter → **Share on WhatsApp**. "A draft opens; nothing is sent automatically." Toggle **हिंदी** at any point.
+CI on every push runs backend lint/tests/pipeline smoke and frontend typecheck/tests/build: [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ---
 
-## 6. Honest limits
+## 9. Demo video
 
-- In-memory repository: data resets when the API restarts. The repository interface is isolated so Postgres can replace it without touching the domain.
-- One demo user; Supabase JWT auth is a documented next step.
-- One invoice per lease is audited (the latest uploaded); annual percentage escalation and a flat maintenance cap are the two implemented checks.
-- Text-layer PDFs and TXT only; scanned documents need OCR.
-- Groq free-tier limits and model ids change; fixtures mode is always available for a reliable live demo.
+Use [`docs/demo-video-script.md`](docs/demo-video-script.md). It contains:
 
-These limits are intentional scope decisions from the technical specification's cut list. Quote validation, deterministic arithmetic and the approval gate were never cut.
+- How to open the Arena live preview.
+- Four screen-recording options.
+- A word-for-word 2-minute script for **Techbeez — Amritanshu Mishra, Kaushiki Upadhaya**.
+- A one-minute fallback and WhatsApp fallback steps.
+
+---
+
+## 10. Honest limits — what this build does **not** claim
+
+1. **No live Groq call has been verified with a real key in this workspace.** The adapter is unit-tested with a fake OpenAI-compatible client; `python -m scripts.smoke_groq` is the remaining check on a machine with a real key.
+2. **No database.** `InMemoryRepo` keeps data in process memory. Restarting the API clears leases and audits.
+3. **No real accounts.** One documented `demo-user` is used. Reads are user-scoped, but there is no JWT or login.
+4. **No OCR.** Only text-layer PDFs and TXT files work; scanned PDFs are rejected.
+5. **Two checks only.** Rent escalation and maintenance cap. Other lease charges are out of scope.
+6. **No legal advice.** The letter says the items are for review, not legal conclusions.
+7. **No money recovered.** The app detects and totals differences for review. It does not collect, refund or send money.
+8. **No automatic WhatsApp sending.** It opens a `wa.me` draft; the tenant decides whether to send.
+9. **No permanent deployment.** The Arena preview URL is temporary while this session is live; local instructions are in §7.
+10. **No browser end-to-end test.** Playwright's browser download failed in this environment, so UI verification is via Vitest component tests, typecheck, build and live API proxy checks.
+11. **No claim about how often tenants are overcharged.** The supplied premise is an unverified hypothesis; this app demonstrates a workflow, not a prevalence finding.
+
+---
+
+## 11. Documents index
+
+| Document | Contents |
+| --- | --- |
+| [`docs/architecture.md`](docs/architecture.md) | Layer rules, request flow and engineering decisions |
+| [`docs/synthetic-data.md`](docs/synthetic-data.md) | Provenance of every bundled sample and fixture |
+| [`docs/submission-checklist.md`](docs/submission-checklist.md) | Requirement-by-requirement status |
+| [`docs/demo-video-script.md`](docs/demo-video-script.md) | Final recording script, credits and preview instructions |
+| [`docs/LeaseGuard_Demo_Script_and_Instructions.docx`](docs/LeaseGuard_Demo_Script_and_Instructions.docx) | Downloadable Word version of the script and instructions |

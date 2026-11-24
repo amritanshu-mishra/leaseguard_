@@ -1,5 +1,7 @@
 # Submission checklist — LeaseGuard
 
+**Team:** Techbeez · **Members:** Amritanshu Mishra, Kaushiki Upadhaya
+
 | Item | Status | Evidence |
 | --- | --- | --- |
 | Working application, same-origin API | Ready | `npm run dev` + `uvicorn …`; `/health` 200; UI calls `/api/v1` |
@@ -9,14 +11,15 @@
 | Evidence for every discrepancy | Ready | Quote, document, page, effective date, value and calculation steps in every finding |
 | Impact metrics without recovery claims | Ready | Excess detected, awaiting review, estimated time saved; explicit disclaimer |
 | Synthetic data only, labelled | Ready | `docs/synthetic-data.md`, banner on every screen, stamped sample files |
-| Tests and CI | Ready | 44 backend tests, 9 frontend tests, ruff, typecheck, production build, pipeline smoke in CI |
+| Tests and CI | Ready | 44 backend tests, 10 frontend tests, ruff, typecheck, production build, pipeline smoke in CI |
 | Dynamic synthetic scenarios | Ready | `GET /demo/scenarios`, `POST /demo/load?scenario=…`; six cases verified in `smoke_pipeline.py` |
 | WhatsApp share is robust | Ready | Direct `wa.me` link + More share options (copy link, native share, alternate link) |
 | Groq setup is discoverable | Ready | Key icon in app header opens bilingual setup guide; README §0–2 |
 | API documentation | Ready | FastAPI `/docs` and `/openapi.json` |
 | README with run steps, architecture, test results, synthetic-data statement | Ready | `README.md`, `docs/architecture.md` |
-| Demo video (about 60 s) | Record separately | 60-second script is in README §5 |
-| Live hosted URL | Deploy separately | Backend `uvicorn`/container, frontend `npm run build` (static `dist/`) |
+| Demo video (2 min) | Script ready | `docs/demo-video-script.md` — final voiceover names Techbeez, Amritanshu Mishra, Kaushiki Upadhaya |
+| Live preview on Arena | Ready | Open the **Live Preview** panel for port **5173** → **Open in new tab**; fallback `https://5173-iq00wejk649icn06cmrof.e2b.app` |
+| Team identity | Ready | Techbeez — Amritanshu Mishra, Kaushiki Upadhaya in README, checklist and video script |
 
 ## Before you present
 
