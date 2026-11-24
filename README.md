@@ -164,6 +164,25 @@ npm run build
 
 The Groq adapter is tested with a fake OpenAI-compatible client; the live call is verified with `python -m scripts.smoke_groq` once a key is configured. `smoke_pipeline.py` can be pointed at the running UI proxy with `LEASEGUARD_API=http://localhost:5173`. Component tests render the audit screen with a full API payload, so a missing field or a blank translation cannot silently ship. CI runs lint, tests, typecheck and build on every push: [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
+### If PowerShell says “'vite' is not recognized”
+
+Node dependencies were not installed in `frontend/` yet. `npm run dev` only works after `npm install` (or `npm ci`) has created `frontend\node_modules\.bin\vite`. From the repo root on Windows:
+
+```powershell
+cd $HOME\leaseguard_
+powershell -ExecutionPolicy Bypass -File setup_laptop.ps1
+```
+
+Or, to fix just the UI folder:
+
+```powershell
+cd $HOME\leaseguard_\frontend
+npm install
+npm run dev
+```
+
+If `npm` itself is not recognized, install Node.js 18+ LTS from <https://nodejs.org> and **open a new PowerShell window** before retrying. Keep one terminal for the API (`backend/`) and a second for the UI (`frontend/`).
+
 ### If WhatsApp does not open
 
 The **Share on WhatsApp** button is a normal link to `wa.me`. Preview iframes and popup blockers can still swallow external navigation. Use **More share options → Copy link** and paste it into WhatsApp, or **Share via device** on a phone. Nothing is sent automatically.
