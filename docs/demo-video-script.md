@@ -1,53 +1,69 @@
-# 2-minute demo video — no local setup needed
+# LeaseGuard — final 2-minute demo script
 
-If the laptop setup is failing, **do not record from the laptop install**. Record the already-running app in the browser instead.
+**Team:** Techbeez  
+**Team members:** Amritanshu Mishra, Kaushiki Upadhaya  
+**Project:** LeaseGuard — evidence-first lease charge audit
 
-## The app to record
-
-Open this URL in Chrome or Edge on the machine you are recording from:
-
-**https://5173-iq00wejk649icn06cmrof.e2b.app**
-
-This is the live Arena preview of the current branch. It proxies `/api` to the API, so nothing on the laptop needs installing. The URL is temporary — use it while this session is live. You can also use the **Live Preview** button in Arena and record that tab.
-
-Confirm it loaded: you should see **“Check your rent before you pay.”** and a **Load sample case** button. The header badge should say **Demo mode** — that is expected and fine for the video.
-
-## How to record (pick one)
-
-| Tool | Windows steps |
-| --- | --- |
-| **Xbox Game Bar** (fastest) | Open the browser tab above → press `Win + Alt + R` to start → `Win + Alt + M` to turn on mic → speak the script → `Win + Alt + S` to stop. Video lands in `Videos\Captures`. |
-| **Loom** (browser extension) | Install Loom, choose **Screen + webcam**, select the browser tab, press Record. Easy pause/re-record. |
-| **OBS Studio** (free, most control) | Add **Window Capture** → select Chrome/Edge → Record. Good if Game Bar is blocked by policy. |
-| **PowerPoint** | Insert → Screen Recording → select the browser window. |
-| **Phone** | Open the URL on the phone and use its built-in screen recorder. |
-
-Tips: use 1280×720 or higher, close notifications, zoom the browser to 125% if text looks small, and keep each click slow enough to read. If a WhatsApp tab opens at the end, leave it open for 3 seconds, then switch back.
+Do **not** record from a broken laptop install. Record the already-running app in the Arena browser preview.
 
 ---
 
-## Exact 2-minute script
+## 1. How to open the live preview in Arena
+
+1. Keep this Arena session open — the Vite dev server is running on **port 5173** and the API on **port 8000**.
+2. In the Arena interface, open the **Live Preview** panel (it is shown for the running “Website” process and labelled with port **5173**).
+3. Click **Open in new tab** / the external-link icon so the app fills a normal browser tab. This makes screen recording much cleaner than recording inside the Arena panel.
+4. You should see **“Check your rent before you pay.”** and a **Load sample case** button. The header badge will say **Demo mode** — that is correct for the video.
+5. If the panel is missing or blank, message in the Arena chat and ask for the preview to be restarted. Do **not** open `http://localhost:5173` on your laptop — that points to your laptop, not this sandbox.
+
+**Direct fallback URL** (use while this session is live):
+
+**https://5173-iq00wejk649icn06cmrof.e2b.app**
+
+Only port **5173** is the app. Port **8000** is the API; do not open it in the video.
+
+---
+
+## 2. How to record
+
+| Tool | Windows steps |
+| --- | --- |
+| **Xbox Game Bar** (fastest) | Focus the browser tab → `Win + Alt + R` to start → `Win + Alt + M` for mic → speak the script → `Win + Alt + S` to stop. Video saves in `Videos\Captures`. |
+| **Loom** (browser extension) | Choose **Screen + webcam**, select the browser tab, press Record. Easy pause and re-record. |
+| **OBS Studio** (free) | Add **Window Capture** → select Chrome/Edge → Record. |
+| **PowerPoint** | Insert → Screen Recording → select the browser window. |
+| **Phone** | Open the preview URL on the phone and use its built-in screen recorder. |
+
+Tips: 1280×720 or higher, close notifications, set browser zoom to 125% if text is small, and click slowly enough for the judges to read. If a WhatsApp tab opens at the end, leave it visible for 3 seconds, then switch back.
+
+---
+
+## 3. Final 2-minute voiceover and click path
+
+Suggested lower-third on the opening frame:
+
+> **Techbeez** · Amritanshu Mishra · Kaushiki Upadhaya · LeaseGuard
 
 ### 0:00–0:10 — Intro
 
-**Show:** full dashboard, including the hero and the six scenario cards.
+**Show:** full dashboard, hero, the six scenario cards and the footer credit “Techbeez · Amritanshu Mishra · Kaushiki Upadhaya”.
 
 **Say:**
-> “This is LeaseGuard. A tenant uploads a lease, its amendment, and this month's invoice. The app checks the bill before payment — and it runs right here in the browser, no installation needed.”
+> “I’m Amritanshu Mishra from **Techbeez**, presenting LeaseGuard with my teammate **Kaushiki Upadhaya**. A tenant uploads a lease, its amendment and this month’s invoice, and the app checks the bill before payment — running right here in the browser, no installation needed.”
 
 ### 0:10–0:22 — Load the case
 
 **Click:** **Load sample case**.
 
 **Say:**
-> “I'm loading a synthetic case: a lease, a January amendment, and an April invoice. These go through the same upload and extraction path as a real document.”
+> “I’m loading a synthetic case: a lease, a January amendment and an April invoice — through the same upload path a real document uses.”
 
 ### 0:22–0:38 — Show the controlling amendment
 
-**Show:** lease detail page — document list and the terms table.
+**Show:** lease detail page — document list and terms table.
 
 **Say:**
-> “Here is why the amendment matters. The original lease says ten percent escalation. The January amendment caps it at five percent. The app marks the new clause **In force** and the older one **Superseded** by effective date. No guessing.”
+> “Here is why the amendment matters. The lease says ten percent escalation. The January amendment caps it at five percent. The app marks the new clause **In force** and the older one **Superseded** by effective date. No guessing.”
 
 ### 0:38–0:48 — Run the audit
 
@@ -56,26 +72,26 @@ Tips: use 1280×720 or higher, close notifications, zoom the browser to 125% if 
 **Say:**
 > “Now I recompute the April bill from the controlling terms. The arithmetic is done in code, in integer paise — the model only reads and quotes.”
 
-### 0:48–1:12 — Show one finding's evidence
+### 0:48–1:12 — Evidence for one finding
 
-**Show:** invoice summary (billed ₹44,000) and the rent finding (expected ₹42,000, excess ₹2,000). Expand **Show calculation** on the first finding.
+**Show:** invoice summary (billed ₹44,000) and rent finding (expected ₹42,000, excess ₹2,000). Expand **Show calculation**.
 
 **Say:**
-> “The shopkeeper billed forty-four thousand. From the controlling amendment, the correct rent is forty-two thousand — a two-thousand-rupee excess. Every finding shows the exact clause quote, the source document, the page, the effective date, and the full calculation. If a quote can't be verified or a clause is vague, it is marked **Needs your input** and no amount is invented.”
+> “The shopkeeper billed forty-four thousand. From the controlling amendment, the correct rent is forty-two thousand — a two-thousand-rupee excess. Every finding shows the exact clause quote, the source document, the page, the effective date and the full calculation. If a quote cannot be verified or a clause is vague, it says **Needs your input** — no amount is invented.”
 
 ### 1:12–1:26 — Impact numbers
 
-**Show:** the impact strip.
+**Show:** impact strip.
 
 **Say:**
-> “Across the case: ₹3,200 excess detected, ₹3,200 awaiting my review, and an estimated time saving. These are review numbers. We do **not** claim any money recovered, and nothing is sent automatically.”
+> “Across the case: ₹3,200 excess detected, ₹3,200 awaiting my review, and an estimated time saving. These are review numbers. We do **not** claim money recovered, and nothing is sent automatically.”
 
 ### 1:26–1:38 — Decide
 
 **Click:** **Approve** on both findings.
 
 **Say:**
-> “I approve the two confirmed differences. Until I do this, they stay pending — the tenant is in control.”
+> “I approve the two confirmed differences. Until then they stay pending — the tenant is in control.”
 
 ### 1:38–1:50 — Generate the letter
 
@@ -86,17 +102,17 @@ Tips: use 1280×720 or higher, close notifications, zoom the browser to 125% if 
 
 ### 1:50–2:00 — Share and close
 
-**Show:** letter preview. **Click हिंदी** once, then click **Share on WhatsApp**. If a draft/tab opens, show it for 3 seconds. If nothing opens, click **More share options → Copy link** and show the copied confirmation.
+**Show:** letter preview. **Click हिंदी** once, then **Share on WhatsApp**. If a draft opens, show it for 3 seconds. If not, use **More share options → Copy link**.
 
 **Say:**
-> “Finally, **Share on WhatsApp** opens a draft with the letter text — the shopkeeper can forward it from there. I decide whether to send. That's LeaseGuard: evidence first, tenant in control. Thank you.”
+> “**Share on WhatsApp** opens a draft with the letter text so the shopkeeper can forward it. I decide whether to send. I’m Amritanshu Mishra, with Kaushiki Upadhaya, from **Techbeez** — LeaseGuard: evidence first, tenant in control. Thank you.”
 
 ---
 
-## One-minute fallback
+## 4. One-minute fallback
 
-If you only get 60 seconds, keep steps 0:00–0:10, 0:22–0:38, 0:48–1:12, 1:12–1:26 and 1:50–2:00. Skip creating a new lease, uploads from disk, the six scenario cards, and the key setup — those are in the README, not the video.
+Keep only: intro, controlling amendment, evidence finding, impact numbers, and share/close. Say the team names in the intro and again in the last 5 seconds.
 
-## If the preview itself fails
+## 5. If the preview fails
 
-Check <http://localhost:5173> is not required — it is not. Use the `e2b.app` URL above. If it is blank, message in the chat and I will restart the preview; do not try to fix it with `npm install` on the laptop.
+`http://localhost:5173` is **not** needed. Use the `e2b.app` URL or the Arena Live Preview panel. If both fail, message in the chat to restart the preview — do not try to repair it with `npm install` on the laptop.

@@ -154,6 +154,7 @@ export default function App() {
 
       <footer className="site-footer">
         <span>{t('appName')} · {t('tagline')}</span>
+        <span>Techbeez · Amritanshu Mishra · Kaushiki Upadhaya</span>
         <span>{t('impactDisclaimer')}</span>
       </footer>
 

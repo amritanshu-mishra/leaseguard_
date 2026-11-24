@@ -1,5 +1,7 @@
 # LeaseGuard — evidence-first lease charge audit
 
+**Team Techbeez** · Amritanshu Mishra · Kaushiki Upadhaya
+
 A working, bilingual (English/हिंदी) lease-charge checker for small tenants. Upload a lease, its amendment and an invoice. LeaseGuard extracts terms with **verbatim quotes**, resolves which amendment controls, recomputes rent and maintenance **deterministically in integer paise**, and shows the clause, page, effective date and calculation behind every flagged difference. It never guesses, never claims a recovery, and never sends anything to a landlord: a tenant approves findings before a letter is prepared, and the letter can be shared as a WhatsApp draft.
 
 > All bundled documents are **synthetic demo data** derived from the attached technical specification. No real tenant documents or personal data are used. See [`docs/synthetic-data.md`](docs/synthetic-data.md).
@@ -18,7 +20,15 @@ A working, bilingual (English/हिंदी) lease-charge checker for small te
 
 Both servers are already started in this workspace. If you restart them, follow §1.
 
-**Recording the demo?** Use [`docs/demo-video-script.md`](docs/demo-video-script.md) — it has a ready 2-minute voiceover, click-by-click actions, screen-recorder options, and a browser preview URL that needs no laptop installation.
+### How to open the live preview in Arena
+
+1. Keep this Arena session open — Vite is running on **port 5173** and the API on **port 8000**.
+2. Open the **Live Preview** panel in Arena for the running “Website” process (labelled **5173**).
+3. Click **Open in new tab** so the app fills a normal browser tab. You should see **“Check your rent before you pay.”** and **Load sample case**. The **Demo mode** badge is expected.
+4. Direct fallback while this session is live: <https://5173-iq00wejk649icn06cmrof.e2b.app>.
+5. Do **not** use `http://localhost:5173` on your laptop — that points to your laptop, not this sandbox. Only port 5173 is the app; port 8000 is the API.
+
+**Recording the demo?** Use [`docs/demo-video-script.md`](docs/demo-video-script.md) — it has the final 2-minute voiceover with **Techbeez / Amritanshu Mishra / Kaushiki Upadhaya**, click-by-click actions, screen-recorder options, and the preview URL.
 
 ## 1. Quick start (no API key needed)
 
