@@ -18,7 +18,7 @@
 | API documentation | Ready | FastAPI `/docs` and `/openapi.json` |
 | README with run steps, architecture, test results, synthetic-data statement | Ready | `README.md`, `docs/architecture.md` |
 | Demo video (2 min) | Script ready | `docs/demo-video-script.md` — final voiceover names Techbeez, Amritanshu Mishra, Kaushiki Upadhaya |
-| Live preview on Arena | Ready | Open the **Live Preview** panel for port **5173** → **Open in new tab**; fallback `https://5173-iq00wejk649icn06cmrof.e2b.app` |
+| Live preview on Arena | Ready | Open the **Live Preview** panel for port **5173** → **Open in new tab**; bare `e2b.app` URL is token-gated and shows “traffic token missing” |
 | Team identity | Ready | Techbeez — Amritanshu Mishra, Kaushiki Upadhaya in README, checklist and video script |
 
 ## Before you present

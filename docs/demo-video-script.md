@@ -18,9 +18,8 @@ Do **not** record from a broken laptop install. Record the already-running app i
 4. You should see **“Check your rent before you pay.”** and a **Load sample case** button. The header badge will say **Demo mode** — that is correct for the video.
 5. If the panel is missing or blank, message in the Arena chat and ask for the preview to be restarted. Do **not** open `http://localhost:5173` on your laptop — that points to your laptop, not this sandbox.
 
-**Direct fallback URL** (use while this session is live):
-
-**https://5173-iq00wejk649icn06cmrof.e2b.app**
+> **“Traffic token missing”?**
+> You pasted the bare `https://5173-….e2b.app` address. Close that tab. The sandbox URL is token-gated — only the full URL produced by Arena’s **Open in new tab** button carries the required traffic token. Use the **Live Preview** panel, not a hand-typed link.
 
 Only port **5173** is the app. Port **8000** is the API; do not open it in the video.
 
@@ -117,4 +116,4 @@ Keep only: intro, controlling amendment, evidence finding, impact numbers, and s
 
 ## 5. If the preview fails
 
-`http://localhost:5173` is **not** needed. Use the `e2b.app` URL or the Arena Live Preview panel. If both fail, message in the chat to restart the preview — do not try to repair it with `npm install` on the laptop.
+`http://localhost:5173` is **not** needed. Use the Arena Live Preview panel and its **Open in new tab** button — do not paste the bare `e2b.app` URL, which will show **“traffic token missing”**. If the panel fails, message in the chat to restart the preview — do not try to repair it with `npm install` on the laptop.
