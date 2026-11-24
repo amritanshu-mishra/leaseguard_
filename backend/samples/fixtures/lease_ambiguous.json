@@ -1,0 +1,7 @@
+{
+  "terms": [
+    {"term_type":"base_rent_paise","value":4000000,"source_quote":"The monthly rent shall be Rs. 40,000","page":1,"confidence":0.95,"ambiguous":false},
+    {"term_type":"escalation_rate_bp","value":null,"source_quote":"a reasonable increase in line with the market rate","page":1,"confidence":0.42,"ambiguous":true},
+    {"term_type":"maintenance_cap_paise","value":400000,"source_quote":"maintenance capped at Rs. 4,000","page":1,"confidence":0.95,"ambiguous":false}
+  ]
+}

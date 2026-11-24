@@ -1,0 +1,5 @@
+{
+  "terms": [
+    {"term_type":"escalation_rate_bp","value":500,"source_quote":"escalation shall not exceed five percent (5%) per annum","page":1,"confidence":0.97,"ambiguous":false}
+  ]
+}
