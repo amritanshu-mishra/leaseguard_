@@ -6,6 +6,8 @@
 
 Do **not** record from a broken laptop install. Record the already-running app in the Arena browser preview.
 
+**Word version:** [`LeaseGuard_Demo_Script_and_Instructions.docx`](LeaseGuard_Demo_Script_and_Instructions.docx) — same script and instructions, formatted for download and printing.
+
 ---
 
 ## 1. How to open the live preview in Arena

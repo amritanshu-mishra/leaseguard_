@@ -483,3 +483,4 @@ Use [`docs/demo-video-script.md`](docs/demo-video-script.md). It contains:
 | [`docs/synthetic-data.md`](docs/synthetic-data.md) | Provenance of every bundled sample and fixture |
 | [`docs/submission-checklist.md`](docs/submission-checklist.md) | Requirement-by-requirement status |
 | [`docs/demo-video-script.md`](docs/demo-video-script.md) | Final recording script, credits and preview instructions |
+| [`docs/LeaseGuard_Demo_Script_and_Instructions.docx`](docs/LeaseGuard_Demo_Script_and_Instructions.docx) | Downloadable Word version of the script and instructions |
